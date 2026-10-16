@@ -1,0 +1,28 @@
+# Blueprint de Render: crea la API de StockFlow en el plan gratuito.
+# En Render: New → Blueprint → elige este repositorio. Te pedirá los valores marcados con sync: false.
+services:
+  - type: web
+    name: stockflow-api
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Cadena de conexión de Aiven, por ejemplo:
+      # Server=mysql-xxx.aivencloud.com;Port=12345;Database=stockflow;User=avnadmin;Password=...;SslMode=Required;
+      - key: ConnectionStrings__DefaultConnection
+        sync: false
+      # Render genera una clave aleatoria para firmar los JWT.
+      - key: Jwt__Key
+        generateValue: true
+      # Orígenes del frontend separados por coma: http://localhost:5173,https://tu-proyecto.vercel.app
+      - key: Cors__AllowedOrigins__0
+        sync: false
+      # Sin bucket: la subida de fotos y guías queda desactivada. Para activarla, ver deploy/README.md.
+      - key: Storage__Provider
+        value: None

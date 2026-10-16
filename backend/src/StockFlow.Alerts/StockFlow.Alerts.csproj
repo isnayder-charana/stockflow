@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StockFlow.Alerts</RootNamespace>
+    <AssemblyName>StockFlow.Alerts</AssemblyName>
+    <!-- Lambda ejecuta el ensamblado como programa (handler = "StockFlow.Alerts") -->
+    <AWSProjectType>Lambda</AWSProjectType>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" Version="3.4.0" />
+    <PackageReference Include="Amazon.Lambda.RuntimeSupport" Version="2.3.0" />
+    <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="3.0.1" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" Version="4.0.106.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StockFlow.Alerts.Tests" />
+  </ItemGroup>
+
+</Project>

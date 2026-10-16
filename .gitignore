@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# Node
+node_modules/
+dist/
+.env
+.env.local
+
+# IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Configuración local con contraseñas (se sube appsettings.Development.example.json)
+**/appsettings.Development.json
+
+# Archivos subidos en desarrollo (Storage:Provider = Local)
+backend/src/StockFlow.Api/uploads/
+
+# AWS SAM (samconfig.toml guarda tus parámetros, incluidas las contraseñas)
+.aws-sam/
+samconfig.toml
+alerts-preview.html

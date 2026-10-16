@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "local": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "STOCKFLOW_API_URL": "http://localhost:5000",
+        "STOCKFLOW_API_USER": "alertas",
+        "STOCKFLOW_API_PASSWORD": "Alertas123!",
+        "ALERTS_DRY_RUN": "true",
+        "ALERTS_SEND_WHEN_EMPTY": "true"
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+# Microservicio de alertas: revisa el stock mínimo y envía el correo una vez al día.
+# Configura los secretos en GitHub: Settings → Secrets and variables → Actions.
+name: Alertas de stock mínimo
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC = 8:00 en Lima
+  workflow_dispatch: {} # botón "Run workflow" para probarlo a mano
+
+jobs:
+  alertas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Enviar alertas
+        run: dotnet run --project backend/src/StockFlow.Alerts --no-launch-profile -c Release
+        env:
+          STOCKFLOW_API_URL: ${{ secrets.STOCKFLOW_API_URL }}
+          STOCKFLOW_API_USER: alertas
+          STOCKFLOW_API_PASSWORD: ${{ secrets.STOCKFLOW_API_PASSWORD }}
+          ALERTS_TO: ${{ secrets.ALERTS_TO }}
+          ALERTS_SMTP_USER: ${{ secrets.ALERTS_GMAIL_USER }}
+          ALERTS_SMTP_PASSWORD: ${{ secrets.ALERTS_GMAIL_APP_PASSWORD }}

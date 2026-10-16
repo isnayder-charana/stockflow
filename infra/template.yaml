@@ -1,0 +1,297 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  StockFlow: API ASP.NET en Lambda + API Gateway, MySQL en RDS, fotos y guías de remisión en S3
+  y microservicio de alertas de stock mínimo (Lambda + EventBridge Scheduler + correo por Gmail).
+
+Parameters:
+  DbUsername:
+    Type: String
+    Default: stockflow_admin
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9_]{0,15}$'
+    Description: Usuario maestro de MySQL.
+  DbPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+    MaxLength: 41
+    # Sin ; = @ / " ni espacios: van dentro de la cadena de conexión.
+    AllowedPattern: '^[A-Za-z0-9!#%^*()_+.\-]+$'
+    Description: Contraseña de MySQL (12 a 41 caracteres; letras, números y ! # % ^ * ( ) _ + . -).
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+    Description: Tamaño de la instancia RDS. db.t4g.micro es la más barata.
+  MyIpCidr:
+    Type: String
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+    Description: Tu IP pública con /32 (por ejemplo 190.12.34.56/32). Solo esa IP podrá conectarse a MySQL desde fuera de AWS.
+  JwtKey:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Clave para firmar los tokens JWT (32 caracteres o más, distinta a la de desarrollo).
+  FrontendOrigins:
+    Type: String
+    Default: http://localhost:5173
+    Description: Orígenes del frontend permitidos por CORS, separados por coma (por ejemplo http://localhost:5173,https://stockflow.vercel.app).
+  AlertsUsername:
+    Type: String
+    Default: alertas
+    Description: Usuario de solo lectura con el que el microservicio de alertas consulta la API.
+  AlertsUserPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Contraseña de ese usuario (la misma que usarás en Seed__AlertsPassword al preparar la base).
+  AlertsGmailUser:
+    Type: String
+    Description: Cuenta de Gmail que envía las alertas (por ejemplo tucorreo@gmail.com).
+  AlertsGmailAppPassword:
+    Type: String
+    NoEcho: true
+    Description: Contraseña de aplicación de esa cuenta de Gmail (16 letras), no tu contraseña normal.
+  AlertsToEmails:
+    Type: String
+    Description: Destinatarios de las alertas, separados por coma.
+  AlertsSchedule:
+    Type: String
+    Default: cron(0 8 * * ? *)
+    Description: Cuándo se envían las alertas, en hora de Lima. Por defecto, todos los días a las 8:00.
+
+Globals:
+  Function:
+    Runtime: dotnet8
+    Architectures: [arm64]
+    MemorySize: 1024
+    Timeout: 30
+
+Resources:
+  # ---------- Red: VPC propia con dos subredes públicas (sin NAT Gateway, que cuesta) ----------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.20.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags: [{ Key: Name, Value: stockflow }]
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.20.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags: [{ Key: Name, Value: stockflow-a }]
+
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.20.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags: [{ Key: Name, Value: stockflow-b }]
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  InternetRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetARouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetA
+      RouteTableId: !Ref RouteTable
+
+  SubnetBRouteTable:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref SubnetB
+      RouteTableId: !Ref RouteTable
+
+  # La Lambda de la API vive en la VPC (para llegar a RDS) y no tiene salida a internet:
+  # llega a S3 por este endpoint, que es gratis.
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref RouteTable]
+
+  ApiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda de la API de StockFlow
+      VpcId: !Ref Vpc
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: MySQL de StockFlow (solo la Lambda de la API y tu IP)
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref ApiSecurityGroup
+          Description: Lambda de la API
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: !Ref MyIpCidr
+          Description: Tu PC (migraciones y MySQL Workbench)
+
+  # ---------- Base de datos ----------
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subredes de StockFlow
+      SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    # Si borras el stack, RDS guarda una última copia (snapshot) de la base. Bórrala a mano si ya no la quieres.
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: mysql
+      # 8.4 es la versión LTS; 8.0 ya salió del soporte estándar de RDS y cobra soporte extendido.
+      EngineVersion: '8.4.8'
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: '20'
+      StorageType: gp3
+      StorageEncrypted: true
+      DBName: stockflow
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Ref DbPassword
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      PubliclyAccessible: true
+      MultiAZ: false
+      BackupRetentionPeriod: 1
+      AutoMinorVersionUpgrade: true
+      DeletionProtection: false
+
+  # ---------- Archivos: fotos de productos y guías de remisión ----------
+  FilesBucket:
+    Type: AWS::S3::Bucket
+    # El bucket no se borra con el stack para no perder archivos.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: BucketOwnerEnforced }]
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+
+  # ---------- API ----------
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      # ASP.NET responde CORS (Cors:AllowedOrigins); API Gateway solo reenvía.
+      StageName: $default
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: API de StockFlow (ASP.NET Core)
+      CodeUri: ../backend/src/StockFlow.Api/
+      Handler: StockFlow.Api
+      VpcConfig:
+        SubnetIds: [!Ref SubnetA, !Ref SubnetB]
+        SecurityGroupIds: [!Ref ApiSecurityGroup]
+      Environment:
+        Variables:
+          ASPNETCORE_ENVIRONMENT: Production
+          ConnectionStrings__DefaultConnection: !Sub 'Server=${Database.Endpoint.Address};Port=${Database.Endpoint.Port};Database=stockflow;User=${DbUsername};Password=${DbPassword};SslMode=Required;'
+          Jwt__Key: !Ref JwtKey
+          Cors__AllowedOrigins__0: !Ref FrontendOrigins
+          Storage__Provider: S3
+          Storage__BucketName: !Ref FilesBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref FilesBucket
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ApiFunction}
+      RetentionInDays: 14
+
+  # ---------- Microservicio de alertas ----------
+  AlertsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Envía por correo los productos bajo el stock mínimo
+      CodeUri: ../backend/src/StockFlow.Alerts/
+      Handler: StockFlow.Alerts
+      MemorySize: 512
+      Timeout: 60
+      Environment:
+        Variables:
+          STOCKFLOW_API_URL: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+          STOCKFLOW_API_USER: !Ref AlertsUsername
+          STOCKFLOW_API_PASSWORD: !Ref AlertsUserPassword
+          ALERTS_TO: !Ref AlertsToEmails
+          # Amazon SES no está disponible en el plan gratuito de AWS: el correo sale por Gmail.
+          ALERTS_SMTP_USER: !Ref AlertsGmailUser
+          ALERTS_SMTP_PASSWORD: !Ref AlertsGmailAppPassword
+      Events:
+        Daily:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Ref AlertsSchedule
+            ScheduleExpressionTimezone: America/Lima
+            RetryPolicy:
+              MaximumRetryAttempts: 1
+
+  AlertsLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AlertsFunction}
+      RetentionInDays: 14
+
+Outputs:
+  ApiUrl:
+    Description: URL de la API (ponla en VITE_API_URL del frontend)
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+  DbEndpoint:
+    Description: Host de MySQL en RDS
+    Value: !GetAtt Database.Endpoint.Address
+  FilesBucketName:
+    Description: Bucket con las fotos y guías
+    Value: !Ref FilesBucket
+  AlertsFunctionName:
+    Description: Lambda de alertas (para probarla con aws lambda invoke)
+    Value: !Ref AlertsFunction

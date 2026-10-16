@@ -1,0 +1,44 @@
+body {
+  background-color: #f4f6f9;
+}
+
+.login-wrapper {
+  min-height: 100vh;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Productos por debajo del stock mínimo (DevExtreme pinta el fondo en cada celda) */
+.dx-datagrid .dx-row.row-below-min > td {
+  background-color: #fff3cd;
+}
+
+/* Alertas: productos agotados (stock total 0) */
+.dx-datagrid .dx-row.row-out-of-stock > td {
+  background-color: #f8d7da;
+}
+
+/* Fotos de productos */
+.product-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.product-thumb-empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e9ecef;
+  color: #6c757d;
+  font-size: 0.7rem;
+}
+
+.product-photo-large {
+  max-height: 60vh;
+}

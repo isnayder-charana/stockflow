@@ -1,0 +1,97 @@
+@host = http://localhost:5000
+
+### Login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "Admin123!"
+}
+
+### Productos (pega el token del login)
+GET {{host}}/api/products
+Authorization: Bearer <token>
+
+### Almacenes con su stock total
+GET {{host}}/api/warehouses
+Authorization: Bearer <token>
+
+### Stock por producto de un almacén
+GET {{host}}/api/warehouses/1/stock
+Authorization: Bearer <token>
+
+### Registrar una entrada (type: In o Out)
+POST {{host}}/api/movements
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "type": "In",
+  "productId": 1,
+  "warehouseId": 1,
+  "quantity": 20,
+  "reference": "GR-0001"
+}
+
+### Movimientos desde una fecha
+GET {{host}}/api/movements?from=2026-10-01T00:00:00-05:00
+Authorization: Bearer <token>
+
+### Proveedores (con cantidad de productos)
+GET {{host}}/api/suppliers
+Authorization: Bearer <token>
+
+### Crear proveedor (solo Admin)
+POST {{host}}/api/suppliers
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "name": "Ferretería Industrial SAC",
+  "ruc": "20512345678",
+  "contactName": "Rosa Quispe",
+  "phone": "987654321",
+  "email": "ventas@ferreteria.pe",
+  "address": "Av. Argentina 1234, Lima"
+}
+
+### Productos de un proveedor
+GET {{host}}/api/suppliers/1/products
+Authorization: Bearer <token>
+
+### Alertas: productos bajo el stock mínimo (todos los roles)
+GET {{host}}/api/alerts/low-stock
+Authorization: Bearer <token>
+
+### Alertas: solo la cantidad (indicador de la barra)
+GET {{host}}/api/alerts/low-stock/count
+Authorization: Bearer <token>
+
+### Subir la foto de un producto (Admin, Almacenero). JPG, PNG o WebP, hasta 4 MB
+PUT {{host}}/api/products/1/photo
+Authorization: Bearer <token>
+Content-Type: multipart/form-data; boundary=limite
+
+--limite
+Content-Disposition: form-data; name="file"; filename="casco.jpg"
+Content-Type: image/jpeg
+
+< ./casco.jpg
+--limite--
+
+### Quitar la foto
+DELETE {{host}}/api/products/1/photo
+Authorization: Bearer <token>
+
+### Adjuntar la guía de remisión a un movimiento (una sola vez). PDF, JPG o PNG, hasta 4 MB
+POST {{host}}/api/movements/1/document
+Authorization: Bearer <token>
+Content-Type: multipart/form-data; boundary=limite
+
+--limite
+Content-Disposition: form-data; name="file"; filename="guia.pdf"
+Content-Type: application/pdf
+
+< ./guia.pdf
+--limite--
