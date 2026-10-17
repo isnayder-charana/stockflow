@@ -30,6 +30,7 @@ export default function LoginPage() {
     <div className="login-wrapper d-flex align-items-center justify-content-center p-3">
       <div className="card shadow-sm login-card">
         <div className="card-body p-4">
+          <img src="/logo.svg" alt="" width="56" height="56" className="d-block mx-auto mb-2" />
           <h1 className="h4 mb-1 text-center">StockFlow</h1>
           <p className="text-muted text-center mb-4">Control de inventario</p>
 

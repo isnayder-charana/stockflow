@@ -15,7 +15,10 @@ export default function Layout() {
   return (
     <>
       <nav className="navbar navbar-expand navbar-dark bg-dark px-3">
-        <span className="navbar-brand fw-semibold">StockFlow</span>
+        <span className="navbar-brand fw-semibold d-flex align-items-center">
+          <img src="/logo.svg" alt="" width="28" height="28" className="me-2" />
+          StockFlow
+        </span>
         <ul className="navbar-nav me-auto">
           <li className="nav-item">
             <NavLink to="/products" className="nav-link">
