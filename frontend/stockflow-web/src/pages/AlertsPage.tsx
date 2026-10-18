@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import DataGrid, {
+  type DataGridRef,
   Column,
-  Export,
   FilterRow,
   HeaderFilter,
   MasterDetail,
@@ -9,16 +9,20 @@ import DataGrid, {
   Paging,
   SearchPanel,
   Sorting,
+  Toolbar,
+  Item as ToolbarItem,
 } from 'devextreme-react/data-grid'
 import type { MasterDetailTemplateData, RowPreparedEvent } from 'devextreme/ui/data_grid'
 import { alertsApi, errorMessage } from '../api/client.ts'
 import type { LowStockAlert } from '../api/types.ts'
 import { useAlerts } from '../alerts/AlertsContext.tsx'
 import { useAuth } from '../auth/AuthContext.tsx'
+import KpiCards from '../components/KpiCards.tsx'
 import MovementForm from '../components/MovementForm.tsx'
-import { excelExporter } from '../utils/exportExcel.ts'
-
-const onExporting = excelExporter('Alertas de stock', 'alertas-stock.xlsx')
+import PageHeader from '../components/PageHeader.tsx'
+import StatusBadge from '../components/StatusBadge.tsx'
+import { exportGridToExcel } from '../utils/exportExcel.ts'
+import { filterButtonOptions } from '../utils/gridToolbar.ts'
 
 const statusText = (row: LowStockAlert) => (row.totalStock <= 0 ? 'Agotado' : 'Bajo mínimo')
 
@@ -30,7 +34,7 @@ const supplierContact = (row: LowStockAlert) => [row.supplierPhone, row.supplier
 
 function StatusCell({ data }: { data: LowStockAlert }) {
   const out = data.totalStock <= 0
-  return <span className={`badge ${out ? 'text-bg-danger' : 'text-bg-warning'}`}>{statusText(data)}</span>
+  return <StatusBadge tone={out ? 'danger' : 'warning'}>{statusText(data)}</StatusBadge>
 }
 
 function onRowPrepared(e: RowPreparedEvent<LowStockAlert>) {
@@ -40,11 +44,11 @@ function onRowPrepared(e: RowPreparedEvent<LowStockAlert>) {
 function WarehousesDetail({ data }: { data: MasterDetailTemplateData<LowStockAlert> }) {
   const row = data.data
   return (
-    <div className="p-2">
-      <div className="fw-semibold mb-2">
+    <div className="detail-panel">
+      <div className="detail-title">
         Stock de {row.productName} por almacén (mínimo total: {row.minStock} {row.unit})
       </div>
-      <DataGrid dataSource={row.warehouses} keyExpr="warehouseId" showBorders columnAutoWidth noDataText="No hay stock en ningún almacén">
+      <DataGrid dataSource={row.warehouses} keyExpr="warehouseId" columnAutoWidth noDataText="No hay stock en ningún almacén">
         <Column dataField="warehouseName" caption="Almacén" defaultSortOrder="asc" />
         <Column dataField="quantity" caption="Cantidad" dataType="number" />
         <Column dataField="isActive" caption="Almacén activo" dataType="boolean" width={130} />
@@ -62,6 +66,8 @@ export default function AlertsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [restockProductId, setRestockProductId] = useState<number | null>(null)
+  const gridRef = useRef<DataGridRef<LowStockAlert, number>>(null)
+  const [showFilters, setShowFilters] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -94,19 +100,42 @@ export default function AlertsPage() {
     [],
   )
 
+  const outOfStock = alerts.filter((a) => a.totalStock <= 0).length
+  const kpiValue = (n: number) => (loading ? null : n)
+
+  // Al ocultar la fila de filtros se quitan sus filtros, para no dejar filas escondidas sin aviso.
+  const toggleFilters = () => {
+    if (showFilters) gridRef.current?.instance().clearFilter('row')
+    setShowFilters(!showFilters)
+  }
+
+  const handleExport = () => {
+    const grid = gridRef.current?.instance()
+    if (grid) exportGridToExcel(grid, 'Alertas de stock', 'alertas-stock.xlsx')
+  }
+
   return (
     <>
-      <div className="d-flex align-items-center justify-content-between mb-3">
-        <div>
-          <h1 className="h4 mb-0">Alertas de stock mínimo</h1>
-          <small className="text-muted">
-            Productos activos cuyo stock total (sumando todos los almacenes) está por debajo del mínimo
-          </small>
-        </div>
-        <button className="btn btn-outline-primary" onClick={handleRefresh} disabled={loading}>
+      <PageHeader
+        title="Alertas de stock mínimo"
+        subtitle="Productos activos cuyo stock total (sumando todos los almacenes) está por debajo del mínimo"
+      >
+        <button className="btn btn-outline-success" onClick={handleExport}>
+          Exportar a Excel
+        </button>
+        <button className="btn btn-primary" onClick={handleRefresh} disabled={loading}>
           Actualizar
         </button>
-      </div>
+      </PageHeader>
+
+      <KpiCards
+        items={[
+          { label: 'Productos en alerta', value: kpiValue(alerts.length) },
+          { label: 'Bajo stock mínimo', value: kpiValue(alerts.length - outOfStock), tone: 'warning' },
+          { label: 'Agotados', value: kpiValue(outOfStock), tone: 'danger' },
+          { label: 'Unidades faltantes', value: kpiValue(alerts.reduce((sum, a) => sum + a.shortage, 0)) },
+        ]}
+      />
 
       {restockProductId !== null && (
         <MovementForm
@@ -123,43 +152,48 @@ export default function AlertsPage() {
         <div className="alert alert-success">Todo en orden: ningún producto está por debajo de su stock mínimo.</div>
       )}
 
-      <div className="card shadow-sm">
-        <div className="card-body">
-          <DataGrid
-            dataSource={alerts}
-            keyExpr="productId"
-            showBorders
-            columnAutoWidth
-            allowColumnResizing
-            noDataText={loading ? 'Cargando…' : 'No hay alertas'}
-            onExporting={onExporting}
-            onRowPrepared={onRowPrepared}
-          >
-            <Sorting mode="multiple" />
-            <FilterRow visible />
-            <HeaderFilter visible />
-            <SearchPanel visible placeholder="Buscar…" />
-            <Paging defaultPageSize={20} />
-            <Pager showPageSizeSelector allowedPageSizes={[10, 20, 50]} showInfo />
-            <Export enabled formats={['xlsx']} />
-            <MasterDetail enabled component={WarehousesDetail} />
+      <div className="grid-card">
+        <DataGrid
+          ref={gridRef}
+          dataSource={alerts}
+          keyExpr="productId"
+          showColumnLines={false}
+          columnAutoWidth
+          allowColumnResizing
+          noDataText={loading ? 'Cargando…' : 'No hay alertas'}
+          onRowPrepared={onRowPrepared}
+        >
+          <Sorting mode="multiple" />
+          <FilterRow visible={showFilters} />
+          <HeaderFilter visible />
+          <SearchPanel visible placeholder="Buscar…" />
+          <Paging defaultPageSize={20} />
+          <Pager showPageSizeSelector allowedPageSizes={[10, 20, 50]} showInfo />
+          <Toolbar>
+            <ToolbarItem name="searchPanel" location="before" />
+            <ToolbarItem
+              location="after"
+              widget="dxButton"
+              options={filterButtonOptions(showFilters, toggleFilters)}
+            />
+          </Toolbar>
+          <MasterDetail enabled component={WarehousesDetail} />
 
-            <Column name="status" caption="Estado" width={120} calculateCellValue={statusText} cellRender={StatusCell} />
-            <Column dataField="sku" caption="SKU" width={110} />
-            <Column dataField="productName" caption="Producto" />
-            <Column dataField="categoryName" caption="Categoría" />
-            <Column dataField="totalStock" caption="Stock total" dataType="number" />
-            <Column dataField="minStock" caption="Mínimo" dataType="number" />
-            <Column dataField="shortage" caption="Faltante" dataType="number" cssClass="fw-semibold" />
-            <Column dataField="unit" caption="Unidad" width={80} />
-            <Column name="warehouses" caption="Por almacén" calculateCellValue={warehousesText} allowFiltering={false} />
-            <Column dataField="supplierName" caption="Proveedor" />
-            <Column name="supplierContact" caption="Contacto proveedor" calculateCellValue={supplierContact} allowFiltering={false} />
-            {canRegister && (
-              <Column name="actions" caption="" width={150} cellRender={ActionsCell} allowExporting={false} />
-            )}
-          </DataGrid>
-        </div>
+          <Column name="status" caption="Estado" width={120} calculateCellValue={statusText} cellRender={StatusCell} />
+          <Column dataField="sku" caption="SKU" width={110} cssClass="cell-code" />
+          <Column dataField="productName" caption="Producto" />
+          <Column dataField="categoryName" caption="Categoría" />
+          <Column dataField="totalStock" caption="Stock total" dataType="number" />
+          <Column dataField="minStock" caption="Mínimo" dataType="number" />
+          <Column dataField="shortage" caption="Faltante" dataType="number" cssClass="fw-semibold" />
+          <Column dataField="unit" caption="Unidad" width={95} />
+          <Column name="warehouses" caption="Por almacén" calculateCellValue={warehousesText} allowFiltering={false} />
+          <Column dataField="supplierName" caption="Proveedor" />
+          <Column name="supplierContact" caption="Contacto proveedor" calculateCellValue={supplierContact} allowFiltering={false} />
+          {canRegister && (
+            <Column name="actions" caption="" width={150} cellRender={ActionsCell} allowExporting={false} />
+          )}
+        </DataGrid>
       </div>
     </>
   )

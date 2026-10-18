@@ -41,7 +41,7 @@ describe('Layout', () => {
       expect(screen.getByRole('link', { name })).toBeInTheDocument()
     }
     expect(screen.getByText('Pantalla de productos')).toBeInTheDocument()
-    expect(await screen.findByTitle('Sin productos bajo el stock mínimo')).toHaveClass('btn-outline-light')
+    expect(await screen.findByTitle('Sin productos bajo el stock mínimo')).not.toHaveClass('alerts-pill-active')
   })
 
   it('resalta las alertas cuando hay productos bajo el mínimo', async () => {
@@ -50,7 +50,7 @@ describe('Layout', () => {
     renderLayout()
 
     const alerts = await screen.findByTitle('4 producto(s) bajo el stock mínimo')
-    expect(alerts).toHaveClass('btn-warning')
+    expect(alerts).toHaveClass('alerts-pill-active')
     expect(alerts).toHaveTextContent('4')
   })
 

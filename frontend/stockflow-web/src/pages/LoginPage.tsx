@@ -28,12 +28,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-wrapper d-flex align-items-center justify-content-center p-3">
-      <div className="card shadow-sm login-card">
-        <div className="card-body p-4">
-          <img src="/logo.svg" alt="" width="56" height="56" className="d-block mx-auto mb-2" />
-          <h1 className="h4 mb-1 text-center">StockFlow</h1>
-          <p className="text-muted text-center mb-4">Control de inventario</p>
+    <div className="login-wrapper">
+      <div className="login-brand">
+        <img src="/logo.svg" alt="" width="40" height="40" />
+        StockFlow
+      </div>
+      <div className="login-card">
+        <div className="login-card-body">
+          <h1 className="login-title">Iniciar sesión</h1>
+          <p className="login-subtitle">Control de inventario industrial</p>
 
           {error && <div className="alert alert-danger py-2">{error}</div>}
 
@@ -66,7 +69,7 @@ export default function LoginPage() {
                 required
               />
             </div>
-            <button type="submit" className="btn btn-primary w-100" disabled={loading}>
+            <button type="submit" className="btn btn-primary btn-lg w-100" disabled={loading}>
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>

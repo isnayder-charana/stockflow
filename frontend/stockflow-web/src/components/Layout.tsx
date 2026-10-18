@@ -2,6 +2,13 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAlerts } from '../alerts/AlertsContext.tsx'
 import { useAuth } from '../auth/AuthContext.tsx'
 
+const links = [
+  { to: '/products', label: 'Productos' },
+  { to: '/warehouses', label: 'Almacenes' },
+  { to: '/suppliers', label: 'Proveedores' },
+  { to: '/movements', label: 'Movimientos' },
+]
+
 export default function Layout() {
   const { session, logout } = useAuth()
   const { count: alertCount } = useAlerts()
@@ -14,52 +21,35 @@ export default function Layout() {
 
   return (
     <>
-      <nav className="navbar navbar-expand navbar-dark bg-dark px-3">
-        <span className="navbar-brand fw-semibold d-flex align-items-center">
-          <img src="/logo.svg" alt="" width="28" height="28" className="me-2" />
+      <header className="app-topbar">
+        <span className="app-brand">
+          <img src="/logo.svg" alt="" width="30" height="30" />
           StockFlow
         </span>
-        <ul className="navbar-nav me-auto">
-          <li className="nav-item">
-            <NavLink to="/products" className="nav-link">
-              Productos
+        <nav className="app-nav">
+          {links.map((l) => (
+            <NavLink key={l.to} to={l.to} className="app-nav-link">
+              {l.label}
             </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink to="/warehouses" className="nav-link">
-              Almacenes
-            </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink to="/suppliers" className="nav-link">
-              Proveedores
-            </NavLink>
-          </li>
-          <li className="nav-item">
-            <NavLink to="/movements" className="nav-link">
-              Movimientos
-            </NavLink>
-          </li>
-        </ul>
-        <NavLink
-          to="/alerts"
-          className={`btn btn-sm me-3 ${alertCount ? 'btn-warning' : 'btn-outline-light'}`}
-          title={alertCount ? `${alertCount} producto(s) bajo el stock mínimo` : 'Sin productos bajo el stock mínimo'}
-        >
-          Alertas{' '}
-          <span className={`badge rounded-pill ${alertCount ? 'text-bg-danger' : 'text-bg-secondary'}`}>
-            {alertCount ?? '…'}
+          ))}
+        </nav>
+        <div className="app-user">
+          <NavLink
+            to="/alerts"
+            className={`alerts-pill ${alertCount ? 'alerts-pill-active' : ''}`}
+            title={alertCount ? `${alertCount} producto(s) bajo el stock mínimo` : 'Sin productos bajo el stock mínimo'}
+          >
+            Alertas <span className="alerts-count">{alertCount ?? '…'}</span>
+          </NavLink>
+          <span className="app-user-name">
+            {session?.fullName || session?.username} <span className="role-badge">{session?.role}</span>
           </span>
-        </NavLink>
-        <span className="navbar-text text-light me-3">
-          {session?.fullName || session?.username}{' '}
-          <span className="badge text-bg-secondary">{session?.role}</span>
-        </span>
-        <button className="btn btn-outline-light btn-sm" onClick={handleLogout}>
-          Cerrar sesión
-        </button>
-      </nav>
-      <main className="container-fluid py-4">
+          <button className="btn-logout" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
+      <main className="app-main">
         <Outlet />
       </main>
     </>

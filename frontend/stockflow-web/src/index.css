@@ -1,32 +1,513 @@
-body {
-  background-color: #f4f6f9;
+/* Estilo StockFlow: barra oscura, tarjetas blancas con KPI y grillas limpias. */
+:root {
+  --sf-bg: #f3f4f6;
+  --sf-surface: #ffffff;
+  --sf-border: #e5e7eb;
+  --sf-topbar: #1f2328;
+  --sf-text: #1f2937;
+  --sf-muted: #6b7280;
+  --sf-primary: #2563eb;
+  --sf-primary-hover: #1d4ed8;
+  --sf-success: #15803d;
+  --sf-warning: #b7791f;
+  --sf-danger: #dc2626;
+  --sf-row-warning: #fef6dc;
+  --sf-row-danger: #fbe1e1;
+  --sf-radius: 10px;
+  --sf-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --sf-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  --bs-body-font-family: var(--sf-font);
+  --bs-body-color: var(--sf-text);
+  --bs-primary: var(--sf-primary);
+  --bs-primary-rgb: 37, 99, 235;
 }
 
+body {
+  background-color: var(--sf-bg);
+  color: var(--sf-text);
+  font-family: var(--sf-font);
+}
+
+/* ---------- Botones (Bootstrap) ---------- */
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--sf-primary);
+  --bs-btn-border-color: var(--sf-primary);
+  --bs-btn-hover-bg: var(--sf-primary-hover);
+  --bs-btn-hover-border-color: var(--sf-primary-hover);
+  --bs-btn-active-bg: var(--sf-primary-hover);
+  --bs-btn-active-border-color: var(--sf-primary-hover);
+  --bs-btn-disabled-bg: var(--sf-primary);
+  --bs-btn-disabled-border-color: var(--sf-primary);
+}
+
+.btn-outline-success {
+  --bs-btn-color: var(--sf-success);
+  --bs-btn-border-color: #86c9a0;
+  --bs-btn-bg: var(--sf-surface);
+  --bs-btn-hover-bg: #ecfdf3;
+  --bs-btn-hover-color: var(--sf-success);
+  --bs-btn-hover-border-color: var(--sf-success);
+  --bs-btn-active-bg: #dcfce7;
+  --bs-btn-active-color: var(--sf-success);
+  --bs-btn-active-border-color: var(--sf-success);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--sf-primary);
+  --bs-btn-border-color: #93b4f5;
+  --bs-btn-hover-bg: #eff4ff;
+  --bs-btn-hover-color: var(--sf-primary);
+  --bs-btn-hover-border-color: var(--sf-primary);
+}
+
+.card,
+.alert {
+  border-radius: var(--sf-radius);
+}
+
+.card {
+  border-color: var(--sf-border);
+  box-shadow: none !important;
+}
+
+/* ---------- Barra superior ---------- */
+.app-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 2rem;
+  padding: 0.7rem 1.5rem;
+  background: var(--sf-topbar);
+  color: #fff;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.app-brand img {
+  border-radius: 7px;
+}
+
+.app-nav {
+  display: flex;
+  gap: 1.75rem;
+  margin-right: auto;
+  overflow-x: auto;
+}
+
+.app-topbar .app-nav-link {
+  color: #9ca3af;
+  text-decoration: none;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.app-topbar .app-nav-link:hover {
+  color: #e5e7eb;
+}
+
+.app-topbar .app-nav-link.active {
+  color: #fff;
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.app-topbar .alerts-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 7px;
+  border: 1px solid #4b5563;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-topbar .alerts-pill:hover {
+  color: #fff;
+  border-color: #9ca3af;
+}
+
+.app-topbar .alerts-pill-active {
+  background: #fbbf24;
+  border-color: #fbbf24;
+  color: #1f2328;
+}
+
+.app-topbar .alerts-pill-active:hover {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #1f2328;
+}
+
+.alerts-count {
+  min-width: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: #4b5563;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35rem;
+  text-align: center;
+}
+
+.alerts-pill-active .alerts-count {
+  background: var(--sf-danger);
+}
+
+.app-user-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.role-badge {
+  margin-left: 0.3rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 5px;
+  background: #4b5563;
+  color: #e5e7eb;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.btn-logout {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.btn-logout:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.app-main {
+  padding: 1.75rem 1.5rem 2.5rem;
+}
+
+/* ---------- Encabezado de página ---------- */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.dx-viewport .page-title,
+.page-title {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.page-subtitle {
+  margin: 0.2rem 0 0;
+  color: var(--sf-muted);
+  font-size: 0.9rem;
+}
+
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+/* ---------- Tarjetas KPI ---------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.kpi-card {
+  padding: 0.9rem 1.1rem;
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+}
+
+.kpi-label {
+  color: var(--sf-muted);
+  font-size: 0.82rem;
+}
+
+.kpi-value {
+  margin-top: 0.15rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kpi-warning {
+  color: var(--sf-warning);
+}
+
+.kpi-danger {
+  color: var(--sf-danger);
+}
+
+.kpi-success {
+  color: var(--sf-success);
+}
+
+/* ---------- Badges de estado ---------- */
+.status-badge {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.status-ok,
+.status-in {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-warning {
+  background: #fbbf24;
+  color: #3f2d00;
+}
+
+.status-danger {
+  background: var(--sf-danger);
+  color: #fff;
+}
+
+.status-out {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.status-muted {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+/* ---------- Grillas DevExtreme ---------- */
+.grid-card {
+  padding: 0.75rem 0 0;
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  overflow: hidden;
+}
+
+.grid-card > .dx-datagrid,
+.grid-card > .dx-widget {
+  font-family: var(--sf-font);
+}
+
+.grid-card .dx-datagrid-header-panel {
+  padding: 0 1rem;
+  border-bottom: 0;
+}
+
+.grid-filters {
+  padding: 0 1rem 0.75rem;
+}
+
+.dx-datagrid {
+  color: var(--sf-text);
+  font-family: var(--sf-font);
+  font-size: 0.9rem;
+}
+
+.dx-datagrid .dx-datagrid-headers {
+  border-top: 1px solid var(--sf-border);
+  border-bottom: 1px solid var(--sf-border);
+  background: #f9fafb;
+  color: var(--sf-muted);
+  font-weight: 500;
+}
+
+.dx-datagrid .dx-datagrid-headers .dx-header-row > td {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 0;
+}
+
+.dx-datagrid .dx-datagrid-filter-row,
+.dx-datagrid .dx-datagrid-filter-row > td {
+  background: #f9fafb;
+}
+
+.dx-datagrid .dx-row > td {
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  border-color: #eef0f3;
+  vertical-align: middle;
+}
+
+/* Primera y última columna con margen, como en la tarjeta. */
+.grid-card .dx-row > td:first-child {
+  padding-left: 1rem;
+}
+
+.dx-datagrid .dx-data-row.dx-state-hover:not(.dx-selection):not(.dx-row-inserted):not(.dx-row-removed):not(.dx-edit-row) > td:not(.dx-focused) {
+  background-color: #f3f6fb;
+}
+
+.dx-datagrid .dx-data-row .cell-code {
+  font-family: var(--sf-mono);
+  font-size: 0.82rem;
+  color: #374151;
+}
+
+.dx-datagrid .dx-datagrid-pager {
+  padding: 0.6rem 1rem;
+  border-top: 1px solid var(--sf-border);
+}
+
+.dx-pager .dx-pages .dx-selection,
+.dx-pager .dx-page-sizes .dx-selection {
+  background-color: var(--sf-primary);
+  color: #fff;
+  border-radius: 6px;
+}
+
+.dx-datagrid-search-panel {
+  border-radius: 8px;
+}
+
+/* Filas resaltadas (DevExtreme pinta el fondo en cada celda) */
+.dx-datagrid .dx-row.row-below-min > td {
+  background-color: var(--sf-row-warning);
+}
+
+.dx-datagrid .dx-row.row-out-of-stock > td {
+  background-color: var(--sf-row-danger);
+}
+
+.dx-datagrid .dx-row.row-inactive > td {
+  color: #9ca3af;
+}
+
+/* Detalle desplegable */
+.detail-panel {
+  padding: 0.5rem 0.25rem;
+}
+
+.detail-title {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.detail-panel .dx-datagrid {
+  border: 1px solid var(--sf-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Popups y botones de DevExtreme con el azul de la app */
+.dx-button-mode-contained.dx-button-default {
+  background-color: var(--sf-primary);
+}
+
+.dx-button-mode-contained.dx-button-default.dx-state-hover {
+  background-color: var(--sf-primary-hover);
+}
+
+.dx-popup-wrapper .dx-overlay-content {
+  border-radius: 12px;
+}
+
+.dx-link {
+  color: var(--sf-primary);
+}
+
+/* ---------- Login ---------- */
 .login-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
   min-height: 100vh;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(37, 99, 235, 0.25), transparent 45%),
+    var(--sf-topbar);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #fff;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.login-brand img {
+  border-radius: 9px;
 }
 
 .login-card {
   width: 100%;
   max-width: 400px;
+  background: var(--sf-surface);
+  border-radius: 14px;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
 }
 
-/* Productos por debajo del stock mínimo (DevExtreme pinta el fondo en cada celda) */
-.dx-datagrid .dx-row.row-below-min > td {
-  background-color: #fff3cd;
+.login-card-body {
+  padding: 2rem;
 }
 
-/* Alertas: productos agotados (stock total 0) */
-.dx-datagrid .dx-row.row-out-of-stock > td {
-  background-color: #f8d7da;
+.dx-viewport .login-title,
+.login-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
 }
 
-/* Fotos de productos */
+.login-subtitle {
+  margin: 0.25rem 0 1.5rem;
+  color: var(--sf-muted);
+}
+
+.login-card .form-label {
+  font-weight: 500;
+}
+
+.login-card .btn-lg {
+  font-size: 1rem;
+}
+
+/* ---------- Fotos de productos ---------- */
 .product-thumb {
   width: 36px;
   height: 36px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -34,11 +515,46 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: #e9ecef;
-  color: #6c757d;
+  background-color: #e5e7eb;
+  color: var(--sf-muted);
   font-size: 0.7rem;
 }
 
 .product-photo-large {
   max-height: 60vh;
+}
+
+@media (max-width: 576px) {
+  .app-topbar {
+    padding: 0.7rem 1rem;
+    gap: 0.5rem 1rem;
+  }
+
+  .app-nav {
+    order: 3;
+    width: 100%;
+    gap: 1.25rem;
+  }
+
+  .app-user {
+    margin-left: auto;
+    gap: 0.75rem;
+  }
+
+  .app-user-name {
+    display: none;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .app-main {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
 }

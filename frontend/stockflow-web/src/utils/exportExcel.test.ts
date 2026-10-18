@@ -1,4 +1,4 @@
-import type { ExportingEvent } from 'devextreme/ui/data_grid'
+import type dxDataGrid from 'devextreme/ui/data_grid'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
@@ -17,9 +17,9 @@ vi.mock('exceljs', () => ({
   },
 }))
 
-import { excelExporter } from './exportExcel.ts'
+import { exportGridToExcel } from './exportExcel.ts'
 
-describe('excelExporter', () => {
+describe('exportGridToExcel', () => {
   beforeEach(() => {
     mocks.addWorksheet.mockReturnValue({ name: 'hoja' })
     mocks.exportDataGrid.mockResolvedValue(undefined)
@@ -28,9 +28,7 @@ describe('excelExporter', () => {
 
   it('exporta la grilla a una hoja y descarga el archivo', async () => {
     const component = { name: 'grid' }
-    const handler = excelExporter('Productos', 'productos.xlsx')
-
-    handler({ component } as unknown as ExportingEvent)
+    await exportGridToExcel(component as unknown as dxDataGrid, 'Productos', 'productos.xlsx')
 
     expect(mocks.addWorksheet).toHaveBeenCalledWith('Productos')
     expect(mocks.exportDataGrid).toHaveBeenCalledWith({
@@ -38,7 +36,7 @@ describe('excelExporter', () => {
       worksheet: { name: 'hoja' },
       autoFilterEnabled: true,
     })
-    await vi.waitFor(() => expect(mocks.saveAs).toHaveBeenCalledOnce())
+    expect(mocks.saveAs).toHaveBeenCalledOnce()
     const [blob, fileName] = mocks.saveAs.mock.calls[0]
     expect(blob).toBeInstanceOf(Blob)
     expect(fileName).toBe('productos.xlsx')
