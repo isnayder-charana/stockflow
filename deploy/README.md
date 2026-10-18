@@ -31,7 +31,7 @@ La carpeta `infra/` (Lambda + RDS con SAM) queda como alternativa para una cuent
    ```bash
    cd /d/Projects/stockflow
    mkdir -p .github/workflows
-   mv deploy/alertas-stock.yml .github/workflows/   # la acción de alertas diarias (paso 6)
+   mv deploy/alertas-stock.yml deploy/mantener-despierto.yml .github/workflows/   # acciones del paso 6
    git init -b main
    git add .
    git status          # revisa que NO aparezcan appsettings.Development.json, .env, bin/ ni node_modules/
@@ -120,6 +120,12 @@ En GitHub → tu repositorio → **Settings → Secrets and variables → Action
 
 Para probar sin esperar: pestaña **Actions → Alertas de stock mínimo → Run workflow**. En el registro verás algo como `StockFlow: 2 productos bajo el stock mínimo: correo enviado a ...`. Si no hay productos bajo el mínimo, no envía nada.
 
+### Mantener la base encendida
+
+El plan gratuito de Aiven apaga la base si pasa un tiempo sin consultas. `.github/workflows/mantener-despierto.yml` llama a `/health/db` cada 4 horas: despierta la API en Render y hace una consulta real a la base. Solo necesita el secreto `STOCKFLOW_API_URL` de la tabla de arriba. Pruébalo en **Actions → Mantener despierto → Run workflow**; debe terminar en verde con `{"status":"ok",...}`.
+
+GitHub pausa las acciones programadas de un repositorio público tras 60 días sin commits. Si te llega ese aviso, vuelve a activarla desde la pestaña **Actions**.
+
 ### Contraseña de aplicación de Gmail
 
 1. Activa la verificación en dos pasos: [myaccount.google.com/signinoptions/twosv](https://myaccount.google.com/signinoptions/twosv).
@@ -131,6 +137,7 @@ Para probar sin esperar: pestaña **Actions → Alertas de stock mínimo → Run
 | Síntoma | Causa probable |
 |---|---|
 | La API tarda cerca de un minuto en responder | Estaba dormida (plan gratuito de Render). Es normal tras 15 minutos sin uso. |
+| `Unknown database`, `transient failure` o la API no conecta de un día para otro | Aiven apagó la base por inactividad. En Aiven → tu servicio, pulsa **Power on**, y revisa que la acción "Mantener despierto" esté corriendo. |
 | Render falla al arrancar con `Unable to connect to any of the specified MySQL hosts` | La cadena de conexión de Aiven está mal copiada o el servicio de Aiven está apagado. |
 | El navegador muestra error de CORS | La URL de Vercel no está en `Cors__AllowedOrigins__0` (sin barra final). |
 | La acción de alertas dice "No se pudo iniciar sesión" | `STOCKFLOW_API_PASSWORD` no es igual a `Seed__AlertsPassword` del paso 3. |

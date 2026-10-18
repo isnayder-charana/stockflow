@@ -20,7 +20,9 @@ builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Falta ConnectionStrings:DefaultConnection.");
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
+    // Reintenta si la conexión se corta (por ejemplo, la base en la nube despertando o una caída breve de red).
+    options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36)),
+        mysql => mysql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null)));
 
 // JWT
 var jwtSection = builder.Configuration.GetSection("Jwt");
@@ -154,6 +156,20 @@ app.MapControllers();
 
 // Para el chequeo de salud del hosting (Render): no toca la base de datos.
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+
+// Hace una consulta real a la base: lo usa la acción "Mantener despierto" para que Aiven no la apague por inactividad.
+app.MapGet("/health/db", async (AppDbContext db, CancellationToken ct) =>
+{
+    try
+    {
+        var products = await db.Products.CountAsync(ct);
+        return Results.Ok(new { status = "ok", products });
+    }
+    catch (Exception ex) when (ex is not OperationCanceledException)
+    {
+        return Results.Json(new { status = "error", message = "No se pudo consultar la base de datos." }, statusCode: 503);
+    }
+}).AllowAnonymous();
 
 app.Run();
 
