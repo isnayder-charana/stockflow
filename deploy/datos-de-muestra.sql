@@ -20,6 +20,8 @@
 -- y ejecutar como script (Alt+X).
 -- =====================================================================
 
+USE stockflow;
+
 START TRANSACTION;
 
 SET @u_admin := (SELECT MIN(Id) FROM Users WHERE Role = 'Admin' AND IsActive = 1);

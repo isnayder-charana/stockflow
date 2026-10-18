@@ -13,7 +13,7 @@ stockflow/
 │   ├── tests/StockFlow.Api.Tests/    Pruebas xUnit (EF Core InMemory)
 │   └── tests/StockFlow.Alerts.Tests/ Pruebas del microservicio de alertas
 ├── frontend/
-│   └── stockflow-web/                React + Vite + Bootstrap + DevExtreme
+│   └── stockflow-web/                React + TypeScript + Vite + Bootstrap + DevExtreme (pruebas con Vitest)
 ├── deploy/                           Guía de despliegue gratuito (Render + Aiven + Vercel + GitHub Actions)
 ├── infra/                            Alternativa en AWS: plantilla SAM (Lambda + RDS + S3)
 ├── render.yaml                       Blueprint de Render para la API
@@ -56,9 +56,20 @@ dotnet test
 ```bash
 cd frontend/stockflow-web
 cp .env.example .env      # en Windows: copy .env.example .env
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
+
+Pruebas y verificación de tipos:
+
+```bash
+pnpm test          # pruebas unitarias con Vitest (una pasada)
+pnpm test:watch    # se vuelven a correr al guardar
+pnpm typecheck     # TypeScript en modo strict
+pnpm build         # tsc + vite build (lo mismo que corre Vercel)
+```
+
+Las pruebas viven junto al código (`*.test.ts` / `*.test.tsx`) y usan Testing Library sobre jsdom; no llaman a la API real.
 
 Abre http://localhost:5173 e ingresa con `admin` y la contraseña de `Seed:AdminPassword`.
 
