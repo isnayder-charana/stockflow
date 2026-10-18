@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import DataGrid, {
+  type DataGridRef,
   Column,
   Editing,
   Export,
@@ -18,41 +19,30 @@ import DataGrid, {
 } from 'devextreme-react/data-grid'
 import { Item } from 'devextreme-react/form'
 import CustomStore from 'devextreme/data/custom_store'
-import { FILES_ENABLED, fileUrl, lookupsApi, productsApi } from '../api/client.js'
-import { useAlerts } from '../alerts/AlertsContext.jsx'
-import { useAuth } from '../auth/AuthContext.jsx'
-import ProductPhotoModal from '../components/ProductPhotoModal.jsx'
-import { excelExporter } from '../utils/exportExcel.js'
+import type { EditorPreparingEvent, InitNewRowEvent, RowPreparedEvent } from 'devextreme/ui/data_grid'
+import { FILES_ENABLED, errorMessage, fileUrl, lookupsApi, productsApi } from '../api/client.ts'
+import { toProductRequest } from '../api/requests.ts'
+import type { LookupOption, Product, SupplierLookup } from '../api/types.ts'
+import { useAlerts } from '../alerts/AlertsContext.tsx'
+import { useAuth } from '../auth/AuthContext.tsx'
+import ProductPhotoModal from '../components/ProductPhotoModal.tsx'
+import { excelExporter } from '../utils/exportExcel.ts'
 
 const currency = { type: 'currency', currency: 'PEN', precision: 2 }
 const units = ['UND', 'CJA', 'PAR', 'KG', 'LT', 'M', 'ROL', 'JGO']
 
 const onExporting = excelExporter('Productos', 'productos.xlsx')
 
-function toRequest(product) {
-  return {
-    sku: product.sku,
-    name: product.name,
-    description: product.description || null,
-    unit: product.unit || 'UND',
-    unitPrice: product.unitPrice ?? 0,
-    minStock: product.minStock ?? 0,
-    categoryId: product.categoryId,
-    supplierId: product.supplierId ?? null,
-    isActive: product.isActive ?? true,
-  }
-}
-
-function onRowPrepared(e) {
+function onRowPrepared(e: RowPreparedEvent<Product>) {
   if (e.rowType !== 'data') return
   if (!e.data.isActive) e.rowElement.classList.add('text-muted')
   else if (e.data.belowMinStock) e.rowElement.classList.add('row-below-min')
 }
 
 // Los proveedores inactivos se siguen mostrando en la grilla, pero no se ofrecen para asignar.
-const supplierName = (s) => s && (s.isActive ? s.name : `${s.name} (inactivo)`)
+const supplierName = (s: SupplierLookup | null) => (s ? (s.isActive ? s.name : `${s.name} (inactivo)`) : '')
 
-function onInitNewRow(e) {
+function onInitNewRow(e: InitNewRowEvent<Product, number>) {
   e.data.unit = 'UND'
   e.data.unitPrice = 0
   e.data.minStock = 0
@@ -64,11 +54,11 @@ export default function ProductsPage() {
   const canEdit = hasRole('Admin', 'Almacenero')
   const canDelete = hasRole('Admin')
   const { refresh: refreshAlerts } = useAlerts()
-  const gridRef = useRef(null)
-  const [categories, setCategories] = useState([])
-  const [suppliers, setSuppliers] = useState([])
+  const gridRef = useRef<DataGridRef<Product, number>>(null)
+  const [categories, setCategories] = useState<LookupOption[]>([])
+  const [suppliers, setSuppliers] = useState<SupplierLookup[]>([])
   const [error, setError] = useState('')
-  const [photoProduct, setPhotoProduct] = useState(null)
+  const [photoProduct, setPhotoProduct] = useState<Product | null>(null)
 
   useEffect(() => {
     Promise.all([lookupsApi.categories(), lookupsApi.suppliers()])
@@ -76,23 +66,23 @@ export default function ProductsPage() {
         setCategories(c)
         setSuppliers(s)
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err)))
   }, [])
 
   const store = useMemo(
     () =>
-      new CustomStore({
+      new CustomStore<Product, number>({
         key: 'id',
         load: () =>
           productsApi.getAll().catch((err) => {
-            setError(err.message)
+            setError(errorMessage(err))
             throw err
           }),
-        insert: (values) => productsApi.create(toRequest(values)),
+        insert: (values) => productsApi.create(toProductRequest(values)),
         // La grilla solo envía los campos cambiados; se combinan con el registro actual.
         update: async (id, values) => {
           const current = await productsApi.getById(id)
-          return productsApi.update(id, toRequest({ ...current, ...values }))
+          return productsApi.update(id, toProductRequest({ ...current, ...values }))
         },
         remove: (id) => productsApi.remove(id),
       }),
@@ -100,7 +90,7 @@ export default function ProductsPage() {
   )
 
   // En el formulario solo se ofrecen los proveedores activos y el que el producto ya tiene.
-  const onEditorPreparing = (e) => {
+  const onEditorPreparing = (e: EditorPreparingEvent<Product>) => {
     if (e.parentType === 'dataRow' && e.dataField === 'supplierId') {
       e.editorOptions.dataSource = suppliers.filter((s) => s.isActive || s.id === e.value)
     }
@@ -113,7 +103,7 @@ export default function ProductsPage() {
   }
 
   // Miniatura de la foto; al hacer clic se abre la ventana para verla o cambiarla.
-  const renderPhoto = ({ data }) =>
+  const renderPhoto = ({ data }: { data: Product }) =>
     data.photoUrl ? (
       <img
         src={fileUrl(data.photoUrl)}

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import DataGrid, {
+  type DataGridRef,
   Column,
   Editing,
   Export,
@@ -14,28 +15,22 @@ import DataGrid, {
 } from 'devextreme-react/data-grid'
 import { Item } from 'devextreme-react/form'
 import CustomStore from 'devextreme/data/custom_store'
-import { warehousesApi } from '../api/client.js'
-import { useAuth } from '../auth/AuthContext.jsx'
-import { excelExporter } from '../utils/exportExcel.js'
+import type { InitNewRowEvent, MasterDetailTemplateData, RowPreparedEvent } from 'devextreme/ui/data_grid'
+import { errorMessage, warehousesApi } from '../api/client.ts'
+import { toWarehouseRequest } from '../api/requests.ts'
+import type { Warehouse } from '../api/types.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
+import { excelExporter } from '../utils/exportExcel.ts'
 
 const onExporting = excelExporter('Almacenes', 'almacenes.xlsx')
 
-function toRequest(warehouse) {
-  return {
-    code: warehouse.code,
-    name: warehouse.name,
-    location: warehouse.location ?? null,
-    isActive: warehouse.isActive ?? true,
-  }
-}
-
-function onRowPrepared(e) {
+function onRowPrepared(e: RowPreparedEvent<Warehouse>) {
   if (e.rowType === 'data' && !e.data.isActive) {
     e.rowElement.classList.add('text-muted')
   }
 }
 
-function WarehouseStockDetail({ data }) {
+function WarehouseStockDetail({ data }: { data: MasterDetailTemplateData<Warehouse> }) {
   const store = useMemo(
     () => new CustomStore({ key: 'productId', load: () => warehousesApi.getStock(data.data.id) }),
     [data.data.id],
@@ -58,22 +53,22 @@ function WarehouseStockDetail({ data }) {
 export default function WarehousesPage() {
   const { hasRole } = useAuth()
   const isAdmin = hasRole('Admin')
-  const gridRef = useRef(null)
+  const gridRef = useRef<DataGridRef<Warehouse, number>>(null)
   const [error, setError] = useState('')
 
   const store = useMemo(
     () =>
-      new CustomStore({
+      new CustomStore<Warehouse, number>({
         key: 'id',
         load: () => warehousesApi.getAll().catch((err) => {
-          setError(err.message)
+          setError(errorMessage(err))
           throw err
         }),
-        insert: (values) => warehousesApi.create(toRequest(values)),
+        insert: (values) => warehousesApi.create(toWarehouseRequest(values)),
         // La grilla solo envía los campos cambiados; se combinan con el registro actual.
         update: async (id, values) => {
           const current = await warehousesApi.getById(id)
-          return warehousesApi.update(id, toRequest({ ...current, ...values }))
+          return warehousesApi.update(id, toWarehouseRequest({ ...current, ...values }))
         },
         remove: (id) => warehousesApi.remove(id),
       }),
@@ -105,7 +100,7 @@ export default function WarehousesPage() {
             onExporting={onExporting}
             onRowPrepared={onRowPrepared}
             onRowRemoved={onRowRemoved}
-            onInitNewRow={(e) => {
+            onInitNewRow={(e: InitNewRowEvent<Warehouse, number>) => {
               e.data.isActive = true
             }}
           >

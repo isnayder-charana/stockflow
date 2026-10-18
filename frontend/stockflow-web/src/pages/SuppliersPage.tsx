@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import DataGrid, {
+  type DataGridRef,
   Column,
   EmailRule,
   Editing,
@@ -19,33 +20,24 @@ import DataGrid, {
 } from 'devextreme-react/data-grid'
 import { Item } from 'devextreme-react/form'
 import CustomStore from 'devextreme/data/custom_store'
-import { suppliersApi } from '../api/client.js'
-import { useAuth } from '../auth/AuthContext.jsx'
-import { excelExporter } from '../utils/exportExcel.js'
+import type { InitNewRowEvent, MasterDetailTemplateData, RowPreparedEvent } from 'devextreme/ui/data_grid'
+import { errorMessage, suppliersApi } from '../api/client.ts'
+import { toSupplierRequest } from '../api/requests.ts'
+import type { Supplier } from '../api/types.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
+import { excelExporter } from '../utils/exportExcel.ts'
 
 const currency = { type: 'currency', currency: 'PEN', precision: 2 }
 
 const onExporting = excelExporter('Proveedores', 'proveedores.xlsx')
 
-function toRequest(supplier) {
-  return {
-    name: supplier.name,
-    ruc: supplier.ruc,
-    contactName: supplier.contactName || null,
-    phone: supplier.phone || null,
-    email: supplier.email || null,
-    address: supplier.address || null,
-    isActive: supplier.isActive ?? true,
-  }
-}
-
-function onRowPrepared(e) {
+function onRowPrepared(e: RowPreparedEvent<Supplier>) {
   if (e.rowType === 'data' && !e.data.isActive) {
     e.rowElement.classList.add('text-muted')
   }
 }
 
-function SupplierProductsDetail({ data }) {
+function SupplierProductsDetail({ data }: { data: MasterDetailTemplateData<Supplier> }) {
   const store = useMemo(
     () => new CustomStore({ key: 'id', load: () => suppliersApi.getProducts(data.data.id) }),
     [data.data.id],
@@ -70,22 +62,22 @@ function SupplierProductsDetail({ data }) {
 export default function SuppliersPage() {
   const { hasRole } = useAuth()
   const isAdmin = hasRole('Admin')
-  const gridRef = useRef(null)
+  const gridRef = useRef<DataGridRef<Supplier, number>>(null)
   const [error, setError] = useState('')
 
   const store = useMemo(
     () =>
-      new CustomStore({
+      new CustomStore<Supplier, number>({
         key: 'id',
         load: () => suppliersApi.getAll().catch((err) => {
-          setError(err.message)
+          setError(errorMessage(err))
           throw err
         }),
-        insert: (values) => suppliersApi.create(toRequest(values)),
+        insert: (values) => suppliersApi.create(toSupplierRequest(values)),
         // La grilla solo envía los campos cambiados; se combinan con el registro actual.
         update: async (id, values) => {
           const current = await suppliersApi.getById(id)
-          return suppliersApi.update(id, toRequest({ ...current, ...values }))
+          return suppliersApi.update(id, toSupplierRequest({ ...current, ...values }))
         },
         remove: (id) => suppliersApi.remove(id),
       }),
@@ -117,7 +109,7 @@ export default function SuppliersPage() {
             onExporting={onExporting}
             onRowPrepared={onRowPrepared}
             onRowRemoved={onRowRemoved}
-            onInitNewRow={(e) => {
+            onInitNewRow={(e: InitNewRowEvent<Supplier, number>) => {
               e.data.isActive = true
             }}
           >

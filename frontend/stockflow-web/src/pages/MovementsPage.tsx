@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
 import DataGrid, {
   Column,
   Export,
@@ -10,29 +10,28 @@ import DataGrid, {
   SearchPanel,
   Sorting,
 } from 'devextreme-react/data-grid'
-import { FILES_ENABLED, MAX_FILE_BYTES, fileUrl, lookupsApi, movementsApi } from '../api/client.js'
-import { useAuth } from '../auth/AuthContext.jsx'
-import MovementForm from '../components/MovementForm.jsx'
-import { excelExporter } from '../utils/exportExcel.js'
+import { FILES_ENABLED, MAX_FILE_BYTES, errorMessage, fileUrl, lookupsApi, movementsApi } from '../api/client.ts'
+import type { LookupOption, StockMovement } from '../api/types.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
+import MovementForm from '../components/MovementForm.tsx'
+import { startOfDayIso, toInputDate } from '../utils/dates.ts'
+import { excelExporter } from '../utils/exportExcel.ts'
 
 const onExporting = excelExporter('Movimientos', 'movimientos.xlsx')
+
+/** Movimiento con la fecha ya convertida, para que la grilla filtre y ordene por fecha. */
+type MovementRow = Omit<StockMovement, 'date'> & { date: Date }
+
+interface Filters {
+  from: string
+  to: string
+  warehouseId: string
+}
 
 const movementTypes = [
   { value: 'In', text: 'Entrada' },
   { value: 'Out', text: 'Salida' },
 ]
-
-/** Fecha local en formato yyyy-MM-dd, para los inputs de tipo date. */
-function toInputDate(date) {
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-/** Inicio del día local de una fecha yyyy-MM-dd, más `addDays`, en ISO (UTC). */
-function startOfDayIso(value, addDays = 0) {
-  const [y, m, d] = value.split('-').map(Number)
-  return new Date(y, m - 1, d + addDays).toISOString()
-}
 
 function defaultRange() {
   const to = new Date()
@@ -41,13 +40,19 @@ function defaultRange() {
   return { from: toInputDate(from), to: toInputDate(to) }
 }
 
-function TypeCell({ data }) {
+function TypeCell({ data }: { data: MovementRow }) {
   const isIn = data.type === 'In'
   return <span className={`badge ${isIn ? 'text-bg-success' : 'text-bg-danger'}`}>{isIn ? 'Entrada' : 'Salida'}</span>
 }
 
 /** Enlace a la guía de remisión, o botón para adjuntarla si aún no tiene. */
-function DocumentCell({ data, canRegister, onUpload }) {
+interface DocumentCellProps {
+  data: MovementRow
+  canRegister: boolean
+  onUpload: (movement: MovementRow, file: File) => void
+}
+
+function DocumentCell({ data, canRegister, onUpload }: DocumentCellProps) {
   if (data.documentUrl)
     return (
       <a href={fileUrl(data.documentUrl)} target="_blank" rel="noreferrer">
@@ -76,14 +81,14 @@ export default function MovementsPage() {
   const { hasRole } = useAuth()
   const canRegister = hasRole('Admin', 'Almacenero')
 
-  const [filters, setFilters] = useState({ ...defaultRange(), warehouseId: '' })
-  const [warehouses, setWarehouses] = useState([])
-  const [movements, setMovements] = useState([])
+  const [filters, setFilters] = useState<Filters>({ ...defaultRange(), warehouseId: '' })
+  const [warehouses, setWarehouses] = useState<LookupOption[]>([])
+  const [movements, setMovements] = useState<MovementRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
 
-  const load = useCallback(async (current) => {
+  const load = useCallback(async (current: Filters) => {
     setLoading(true)
     setError('')
     try {
@@ -94,20 +99,20 @@ export default function MovementsPage() {
       })
       setMovements(data.map((m) => ({ ...m, date: new Date(m.date) })))
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    lookupsApi.warehouses().then(setWarehouses).catch((err) => setError(err.message))
+    lookupsApi.warehouses().then(setWarehouses).catch((err) => setError(errorMessage(err)))
     load(filters)
     // Solo al montar; luego se recarga con el botón Buscar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleUpload = async (movement, file) => {
+  const handleUpload = async (movement: MovementRow, file: File) => {
     setError('')
     if (file.size > MAX_FILE_BYTES) {
       setError('La guía supera los 4 MB.')
@@ -117,13 +122,13 @@ export default function MovementsPage() {
       const updated = await movementsApi.uploadDocument(movement.id, file)
       setMovements((list) => list.map((m) => (m.id === updated.id ? { ...m, documentUrl: updated.documentUrl } : m)))
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     }
   }
 
-  const setFilter = (field) => (e) => setFilters((f) => ({ ...f, [field]: e.target.value }))
+  const setFilter = (field: keyof Filters) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setFilters((f) => ({ ...f, [field]: e.target.value }))
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     load(filters)
   }
@@ -220,7 +225,7 @@ export default function MovementsPage() {
               allowExporting={false}
               allowFiltering={false}
               allowSorting={false}
-              cellRender={({ data }) => (
+              cellRender={({ data }: { data: MovementRow }) => (
                 <DocumentCell data={data} canRegister={canRegister} onUpload={handleUpload} />
               )}
             />

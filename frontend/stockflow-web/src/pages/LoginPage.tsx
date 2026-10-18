@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext.jsx'
+import { errorMessage } from '../api/client.ts'
+import { useAuth } from '../auth/AuthContext.tsx'
 
 export default function LoginPage() {
   const { session, login } = useAuth()
@@ -12,7 +13,7 @@ export default function LoginPage() {
 
   if (session) return <Navigate to="/products" replace />
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setLoading(true)
@@ -20,7 +21,7 @@ export default function LoginPage() {
       await login(username, password)
       navigate('/products', { replace: true })
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     } finally {
       setLoading(false)
     }

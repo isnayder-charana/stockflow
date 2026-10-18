@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { useAlerts } from '../alerts/AlertsContext.jsx'
-import { useAuth } from '../auth/AuthContext.jsx'
+import { useAlerts } from '../alerts/AlertsContext.tsx'
+import { useAuth } from '../auth/AuthContext.tsx'
 
 export default function Layout() {
   const { session, logout } = useAuth()
@@ -52,8 +52,8 @@ export default function Layout() {
           </span>
         </NavLink>
         <span className="navbar-text text-light me-3">
-          {session.fullName || session.username}{' '}
-          <span className="badge text-bg-secondary">{session.role}</span>
+          {session?.fullName || session?.username}{' '}
+          <span className="badge text-bg-secondary">{session?.role}</span>
         </span>
         <button className="btn btn-outline-light btn-sm" onClick={handleLogout}>
           Cerrar sesión

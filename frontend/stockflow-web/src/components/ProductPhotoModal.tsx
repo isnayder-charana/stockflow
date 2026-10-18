@@ -1,15 +1,23 @@
-import { useState } from 'react'
-import { MAX_FILE_BYTES, fileUrl, productsApi } from '../api/client.js'
+import { useState, type ChangeEvent } from 'react'
+import { MAX_FILE_BYTES, errorMessage, fileUrl, productsApi } from '../api/client.ts'
+import type { Product } from '../api/types.ts'
 
 const accepted = 'image/jpeg,image/png,image/webp'
 
 /** Ventana para ver, subir o quitar la foto de un producto. `onChanged` recibe el producto actualizado. */
-export default function ProductPhotoModal({ product, canEdit, onClose, onChanged }) {
+interface ProductPhotoModalProps {
+  product: Product
+  canEdit: boolean
+  onClose: () => void
+  onChanged?: (product: Product) => void
+}
+
+export default function ProductPhotoModal({ product, canEdit, onClose, onChanged }: ProductPhotoModalProps) {
   const [photoUrl, setPhotoUrl] = useState(product.photoUrl)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const handleFile = async (e) => {
+  const handleFile = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
@@ -24,7 +32,7 @@ export default function ProductPhotoModal({ product, canEdit, onClose, onChanged
       setPhotoUrl(updated.photoUrl)
       onChanged?.(updated)
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -38,7 +46,7 @@ export default function ProductPhotoModal({ product, canEdit, onClose, onChanged
       setPhotoUrl(null)
       onChanged?.({ ...product, photoUrl: null })
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -46,7 +54,7 @@ export default function ProductPhotoModal({ product, canEdit, onClose, onChanged
 
   return (
     <>
-      <div className="modal d-block" tabIndex="-1" role="dialog" onClick={onClose}>
+      <div className="modal d-block" tabIndex={-1} role="dialog" onClick={onClose}>
         <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
           <div className="modal-content">
             <div className="modal-header">

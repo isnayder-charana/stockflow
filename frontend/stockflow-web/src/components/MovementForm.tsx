@@ -1,24 +1,51 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import SelectBox from 'devextreme-react/select-box'
-import { useAlerts } from '../alerts/AlertsContext.jsx'
-import { FILES_ENABLED, MAX_FILE_BYTES, lookupsApi, movementsApi, productsApi, warehousesApi } from '../api/client.js'
+import { useAlerts } from '../alerts/AlertsContext.tsx'
+import {
+  FILES_ENABLED,
+  MAX_FILE_BYTES,
+  errorMessage,
+  lookupsApi,
+  movementsApi,
+  productsApi,
+  warehousesApi,
+} from '../api/client.ts'
+import type { LookupOption, MovementType, Product, StockMovement, WarehouseStock } from '../api/types.ts'
 
-const emptyForm = { type: 'In', warehouseId: '', productId: null, quantity: '', reference: '', notes: '' }
+interface MovementFormState {
+  type: MovementType
+  /** Valor del select (texto); '' mientras no se elija. */
+  warehouseId: string
+  productId: number | null
+  quantity: string
+  reference: string
+  notes: string
+}
 
-const productLabel = (p) => (p ? `${p.sku} · ${p.name}` : '')
+type TextField = 'warehouseId' | 'quantity' | 'reference' | 'notes'
+
+const emptyForm: MovementFormState = { type: 'In', warehouseId: '', productId: null, quantity: '', reference: '', notes: '' }
+
+const productLabel = (p: Product | null | undefined) => (p ? `${p.sku} · ${p.name}` : '')
 
 /** Formulario para registrar una entrada o salida de stock. `initialProductId` preselecciona el producto. */
-export default function MovementForm({ onSaved, onCancel, initialProductId = null }) {
+interface MovementFormProps {
+  onSaved?: (movement: StockMovement) => void
+  onCancel: () => void
+  initialProductId?: number | null
+}
+
+export default function MovementForm({ onSaved, onCancel, initialProductId = null }: MovementFormProps) {
   const { refresh: refreshAlerts } = useAlerts()
-  const [form, setForm] = useState(() => ({ ...emptyForm, productId: initialProductId }))
-  const [warehouses, setWarehouses] = useState([])
-  const [products, setProducts] = useState([])
-  const [stock, setStock] = useState([])
+  const [form, setForm] = useState<MovementFormState>(() => ({ ...emptyForm, productId: initialProductId }))
+  const [warehouses, setWarehouses] = useState<LookupOption[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [stock, setStock] = useState<WarehouseStock[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [documentFile, setDocumentFile] = useState(null)
-  const documentInput = useRef(null)
+  const [documentFile, setDocumentFile] = useState<File | null>(null)
+  const documentInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     Promise.all([lookupsApi.warehouses(), productsApi.getAll()])
@@ -27,7 +54,7 @@ export default function MovementForm({ onSaved, onCancel, initialProductId = nul
         setProducts(p.filter((x) => x.isActive))
         if (w.length === 1) setForm((f) => ({ ...f, warehouseId: String(w[0].id) }))
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err)))
   }, [])
 
   // Stock del almacén elegido, para mostrar lo disponible antes de una salida.
@@ -39,17 +66,17 @@ export default function MovementForm({ onSaved, onCancel, initialProductId = nul
     warehousesApi
       .getStock(form.warehouseId)
       .then(setStock)
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(errorMessage(err)))
   }, [form.warehouseId])
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set = (field: TextField) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
   const product = products.find((p) => p.id === form.productId)
   const available = form.productId ? (stock.find((s) => s.productId === form.productId)?.quantity ?? 0) : null
   const quantity = Number(form.quantity)
   const exceeds = form.type === 'Out' && available !== null && quantity > available
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -78,7 +105,7 @@ export default function MovementForm({ onSaved, onCancel, initialProductId = nul
           await movementsApi.uploadDocument(saved.id, documentFile)
           message += ' Guía adjuntada.'
         } catch (err) {
-          setError(`El movimiento se registró, pero la guía no se pudo subir: ${err.message} Adjúntala desde la grilla.`)
+          setError(`El movimiento se registró, pero la guía no se pudo subir: ${errorMessage(err)} Adjúntala desde la grilla.`)
         }
       }
       setSuccess(message)
@@ -89,7 +116,7 @@ export default function MovementForm({ onSaved, onCancel, initialProductId = nul
       refreshAlerts()
       onSaved?.(saved)
     } catch (err) {
-      setError(err.message)
+      setError(errorMessage(err))
     } finally {
       setSaving(false)
     }

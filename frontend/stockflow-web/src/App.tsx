@@ -1,13 +1,13 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AlertsProvider } from './alerts/AlertsContext.jsx'
-import ProtectedRoute from './auth/ProtectedRoute.jsx'
-import Layout from './components/Layout.jsx'
-import AlertsPage from './pages/AlertsPage.jsx'
-import LoginPage from './pages/LoginPage.jsx'
-import MovementsPage from './pages/MovementsPage.jsx'
-import ProductsPage from './pages/ProductsPage.jsx'
-import SuppliersPage from './pages/SuppliersPage.jsx'
-import WarehousesPage from './pages/WarehousesPage.jsx'
+import { AlertsProvider } from './alerts/AlertsContext.tsx'
+import ProtectedRoute from './auth/ProtectedRoute.tsx'
+import Layout from './components/Layout.tsx'
+import AlertsPage from './pages/AlertsPage.tsx'
+import LoginPage from './pages/LoginPage.tsx'
+import MovementsPage from './pages/MovementsPage.tsx'
+import ProductsPage from './pages/ProductsPage.tsx'
+import SuppliersPage from './pages/SuppliersPage.tsx'
+import WarehousesPage from './pages/WarehousesPage.tsx'
 
 export default function App() {
   return (
