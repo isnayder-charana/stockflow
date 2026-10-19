@@ -6,7 +6,7 @@ Cómo publicar StockFlow sin pagar. Todo esto lo ejecutas tú; nada se despliega
 Navegador ──► Vercel (frontend React)
                  │
                  ▼
-            Render (API ASP.NET en Docker) ──► Aiven (MySQL 8)
+            Render (API ASP.NET en Docker) ──► TiDB Cloud (compatible con MySQL)
 
 GitHub Actions (8:00, hora de Lima) ──► microservicio de alertas ──► API ──► correo por Gmail
 ```
@@ -15,7 +15,7 @@ GitHub Actions (8:00, hora de Lima) ──► microservicio de alertas ──►
 |---|---|---|
 | Código | GitHub (repositorio público o privado) | Gratis. Render, Vercel y GitHub Actions despliegan desde ahí. |
 | API | Render, Web Service con Docker | Gratis. Se duerme tras 15 minutos sin uso; la primera petición después tarda cerca de un minuto. |
-| Base de datos | Aiven for MySQL | Gratis, MySQL 8 de verdad. Se conecta también desde MySQL Workbench. |
+| Base de datos | TiDB Cloud Starter | Gratis y sin tarjeta (5 GiB). Compatible con MySQL; se ve con DBeaver. Se duerme sola y despierta con la primera consulta. |
 | Alertas por correo | GitHub Actions + Gmail | Gratis. Corre una vez al día. |
 | Frontend | Vercel | Gratis. |
 
@@ -31,7 +31,7 @@ La carpeta `infra/` (Lambda + RDS con SAM) queda como alternativa para una cuent
    ```bash
    cd /d/Projects/stockflow
    mkdir -p .github/workflows
-   mv deploy/alertas-stock.yml deploy/mantener-despierto.yml .github/workflows/   # acciones del paso 6
+   mv deploy/alertas-stock.yml .github/workflows/   # la acción de alertas diarias (paso 6)
    git init -b main
    git add .
    git status          # revisa que NO aparezcan appsettings.Development.json, .env, bin/ ni node_modules/
@@ -42,35 +42,40 @@ La carpeta `infra/` (Lambda + RDS con SAM) queda como alternativa para una cuent
 
 El repositorio puede ser público: `.gitignore` deja fuera `appsettings.Development.json` (tu contraseña de MySQL local y tu clave JWT) y `.env`. En su lugar se sube `appsettings.Development.example.json`, sin claves. Las claves de producción van como variables en Render y en GitHub, nunca en el código.
 
-## 2. Crea la base de datos en Aiven
+## 2. Crea la base de datos en TiDB Cloud
 
-1. Regístrate en [console.aiven.io](https://console.aiven.io) (puedes entrar con Google o GitHub).
-2. **Create service → MySQL**, elige el plan **Free**, una región cercana (por ejemplo una de Norteamérica) y el nombre `stockflow-db`.
-3. Cuando el servicio diga **Running**, en **Overview → Connection information** anota **Host**, **Port**, **User** (`avnadmin`) y **Password**.
+TiDB Cloud Starter es compatible con MySQL, gratis y sin tarjeta. Cuando nadie la usa se duerme sola y despierta con la primera consulta: no hay que encenderla a mano.
 
-Tu cadena de conexión queda así (no lleva saltos de línea):
+1. Regístrate en [tidbcloud.com](https://tidbcloud.com) (puedes entrar con Google o GitHub).
+2. En **My TiDB** pulsa **Create Resource**, deja **Starter**, ponle de nombre `stockflow-db`, elige **AWS** y la región **N. Virginia (us-east-1)**, y pulsa **Create**.
+3. Abre la instancia y pulsa **Connect** (arriba a la derecha). Pulsa **Generate Password** y guárdala: solo se muestra una vez.
+4. Anota **Host** (algo como `gateway01.us-east-1.prod.aws.tidbcloud.com`), **Port** (`4000`) y **User** (algo como `3xYz12abc.root`, con el punto incluido).
+
+Tu cadena de conexión queda así (una sola línea; la base `stockflow` la crea el paso 3):
 
 ```
-Server=<Host>;Port=<Port>;Database=stockflow;User=avnadmin;Password=<Password>;SslMode=Required;
+Server=<Host>;Port=4000;Database=stockflow;User=<User>;Password=<Password>;SslMode=Required;ConnectionLifeTime=300;
 ```
 
-### Ver la base en MySQL Workbench
+`ConnectionLifeTime=300` renueva las conexiones cada 5 minutos, como recomienda TiDB Cloud.
 
-Nueva conexión con Hostname = `<Host>`, Port = `<Port>`, Username = `avnadmin`, Password = `<Password>` y en la pestaña **SSL**, *Use SSL* = **Require**. **Database → Reverse Engineer** te dibuja el diagrama entidad-relación.
+### Ver la base gráficamente con DBeaver
+
+Nueva conexión **MySQL** con Host, Port `4000`, Username (con el prefijo y `.root`) y Password. En la pestaña **SSL** marca *Use SSL*. Después de abrir la base `stockflow`, la pestaña **ER Diagram** te dibuja las tablas con sus relaciones.
 
 ## 3. Prepara las tablas y los usuarios
 
-Desde tu PC: aplica las migraciones y crea el usuario `admin` y el usuario `alertas` en Aiven.
+Desde tu PC: aplica las migraciones y crea la base `stockflow`, el usuario `admin` y el usuario `alertas` en TiDB Cloud.
 
 ```bash
 cd /d/Projects/stockflow/backend
-ConnectionStrings__DefaultConnection="<tu cadena de conexión de Aiven>" \
+ConnectionStrings__DefaultConnection='<tu cadena de conexión de TiDB Cloud>' \
 Seed__AdminPassword='<contraseña para admin en producción>' \
 Seed__AlertsPassword='<contraseña para el usuario alertas>' \
 dotnet run --project src/StockFlow.Api -- --setup-database
 ```
 
-Debe terminar con `Base de datos lista.` Repítelo cuando agregues migraciones nuevas: solo aplica lo pendiente.
+Copia y pega el bloque completo de una vez: si escribes solo la última línea, se aplica a tu MySQL local. Debe mostrar varias líneas `Applying migration ...` y terminar con `Base de datos lista.` Repítelo cuando agregues migraciones nuevas: solo aplica lo pendiente.
 
 ## 4. Publica la API en Render
 
@@ -79,7 +84,7 @@ Debe terminar con `Base de datos lista.` Repítelo cuando agregues migraciones n
 
 | Variable | Valor |
 |---|---|
-| `ConnectionStrings__DefaultConnection` | la cadena de conexión de Aiven (paso 2) |
+| `ConnectionStrings__DefaultConnection` | la cadena de conexión de TiDB Cloud (paso 2) |
 | `Cors__AllowedOrigins__0` | por ahora `http://localhost:5173`; en el paso 5 agregas la URL de Vercel |
 
 `Jwt__Key` la genera Render solo. Pulsa **Apply**. La primera construcción tarda unos minutos; al terminar verás la URL, por ejemplo `https://stockflow-api.onrender.com`.
@@ -120,10 +125,6 @@ En GitHub → tu repositorio → **Settings → Secrets and variables → Action
 
 Para probar sin esperar: pestaña **Actions → Alertas de stock mínimo → Run workflow**. En el registro verás algo como `StockFlow: 2 productos bajo el stock mínimo: correo enviado a ...`. Si no hay productos bajo el mínimo, no envía nada.
 
-### Mantener la base encendida
-
-El plan gratuito de Aiven apaga la base si pasa un tiempo sin consultas. `.github/workflows/mantener-despierto.yml` llama a `/health/db` cada 4 horas: despierta la API en Render y hace una consulta real a la base. Solo necesita el secreto `STOCKFLOW_API_URL` de la tabla de arriba. Pruébalo en **Actions → Mantener despierto → Run workflow**; debe terminar en verde con `{"status":"ok",...}`.
-
 GitHub pausa las acciones programadas de un repositorio público tras 60 días sin commits. Si te llega ese aviso, vuelve a activarla desde la pestaña **Actions**.
 
 ### Contraseña de aplicación de Gmail
@@ -137,8 +138,9 @@ GitHub pausa las acciones programadas de un repositorio público tras 60 días s
 | Síntoma | Causa probable |
 |---|---|
 | La API tarda cerca de un minuto en responder | Estaba dormida (plan gratuito de Render). Es normal tras 15 minutos sin uso. |
-| `Unknown database`, `transient failure` o la API no conecta de un día para otro | Aiven apagó la base por inactividad. En Aiven → tu servicio, pulsa **Power on**, y revisa que la acción "Mantener despierto" esté corriendo. |
-| Render falla al arrancar con `Unable to connect to any of the specified MySQL hosts` | La cadena de conexión de Aiven está mal copiada o el servicio de Aiven está apagado. |
+| `Unknown database 'stockflow'` | No corriste el paso 3 con la cadena de TiDB Cloud (o lo corriste sin las variables, contra tu MySQL local). |
+| `Access denied for user` | El usuario no lleva el prefijo (`xxxx.root`) o la contraseña no es la generada en el paso 2. |
+| Render falla al arrancar con `Unable to connect to any of the specified MySQL hosts` | La cadena de conexión de TiDB Cloud está mal copiada (revisa Host, `Port=4000` y `SslMode=Required`). |
 | El navegador muestra error de CORS | La URL de Vercel no está en `Cors__AllowedOrigins__0` (sin barra final). |
 | La acción de alertas dice "No se pudo iniciar sesión" | `STOCKFLOW_API_PASSWORD` no es igual a `Seed__AlertsPassword` del paso 3. |
 | La acción de alertas dice `Authentication Required` o `Username and Password not accepted` | `ALERTS_GMAIL_APP_PASSWORD` no es una contraseña de aplicación válida. |

@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -119,6 +121,7 @@ if (args.Contains("--setup-database"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await UseMySqlCollationOnTiDbAsync(db);
     await db.Database.MigrateAsync();
     await DbSeeder.SeedAdminAsync(db, app.Configuration);
     await DbSeeder.SeedAlertsUserAsync(db, app.Configuration);
@@ -157,7 +160,7 @@ app.MapControllers();
 // Para el chequeo de salud del hosting (Render): no toca la base de datos.
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
-// Hace una consulta real a la base: lo usa la acción "Mantener despierto" para que Aiven no la apague por inactividad.
+// Hace una consulta real a la base: sirve para comprobar que la API llega a la base de datos.
 app.MapGet("/health/db", async (AppDbContext db, CancellationToken ct) =>
 {
     try
@@ -172,6 +175,25 @@ app.MapGet("/health/db", async (AppDbContext db, CancellationToken ct) =>
 }).AllowAnonymous();
 
 app.Run();
+
+// TiDB (TiDB Cloud) crea las tablas utf8mb4 con utf8mb4_bin, que distingue mayúsculas y acentos.
+// Para que se comporte como MySQL 8, las migraciones corren en una sesión con utf8mb4_0900_ai_ci.
+static async Task UseMySqlCollationOnTiDbAsync(AppDbContext db)
+{
+    var creator = db.GetService<IRelationalDatabaseCreator>();
+    if (!await creator.ExistsAsync()) await creator.CreateAsync();
+
+    // La conexión queda abierta para que las migraciones usen esta misma sesión.
+    await db.Database.OpenConnectionAsync();
+    await using var command = db.Database.GetDbConnection().CreateCommand();
+    command.CommandText = "SELECT VERSION()";
+    var version = await command.ExecuteScalarAsync() as string;
+    if (version?.Contains("TiDB", StringComparison.OrdinalIgnoreCase) != true) return;
+
+    // Versiones de TiDB anteriores a la 7.4 no tienen esta variable: ahí se sigue con la intercalación por defecto.
+    try { await db.Database.ExecuteSqlRawAsync("SET SESSION default_collation_for_utf8mb4 = 'utf8mb4_0900_ai_ci'"); }
+    catch (MySqlConnector.MySqlException) { }
+}
 
 // Necesario para pruebas de integración con WebApplicationFactory
 public partial class Program;

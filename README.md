@@ -13,8 +13,8 @@ stockflow/
 │   ├── tests/StockFlow.Api.Tests/    Pruebas xUnit (EF Core InMemory)
 │   └── tests/StockFlow.Alerts.Tests/ Pruebas del microservicio de alertas
 ├── frontend/
-│   └── stockflow-web/                React + TypeScript + Vite + Bootstrap + DevExtreme (pruebas con Vitest)
-├── deploy/                           Guía de despliegue gratuito (Render + Aiven + Vercel + GitHub Actions)
+│   └── stockflow-web/                React + Vite + Bootstrap + DevExtreme
+├── deploy/                           Guía de despliegue gratuito (Render + TiDB Cloud + Vercel + GitHub Actions)
 ├── infra/                            Alternativa en AWS: plantilla SAM (Lambda + RDS + S3)
 ├── render.yaml                       Blueprint de Render para la API
 └── .github/workflows/                Alertas diarias de stock mínimo
@@ -56,20 +56,9 @@ dotnet test
 ```bash
 cd frontend/stockflow-web
 cp .env.example .env      # en Windows: copy .env.example .env
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
-
-Pruebas y verificación de tipos:
-
-```bash
-pnpm test          # pruebas unitarias con Vitest (una pasada)
-pnpm test:watch    # se vuelven a correr al guardar
-pnpm typecheck     # TypeScript en modo strict
-pnpm build         # tsc + vite build (lo mismo que corre Vercel)
-```
-
-Las pruebas viven junto al código (`*.test.ts` / `*.test.tsx`) y usan Testing Library sobre jsdom; no llaman a la API real.
 
 Abre http://localhost:5173 e ingresa con `admin` y la contraseña de `Seed:AdminPassword`.
 
@@ -142,5 +131,5 @@ No envía nada: guarda el correo en `backend/alerts-preview.html`.
 
 ## Despliegue
 
-- **Gratis:** API en Render (Docker), MySQL en Aiven, frontend en Vercel y alertas diarias con GitHub Actions. Paso a paso en [deploy/README.md](deploy/README.md).
+- **Gratis:** API en Render (Docker), base compatible con MySQL en TiDB Cloud, frontend en Vercel y alertas diarias con GitHub Actions. Paso a paso en [deploy/README.md](deploy/README.md).
 - **Todo en AWS:** API en Lambda + API Gateway, MySQL en RDS, S3 y EventBridge Scheduler, con la plantilla de [infra/README.md](infra/README.md). Necesita una cuenta de AWS que permita CloudFormation (las del plan gratuito nuevo lo bloquean).
