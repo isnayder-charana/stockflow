@@ -92,6 +92,8 @@ function formWithFile(file: File) {
 export const authApi = {
   login: (username: string, password: string) =>
     apiFetch<Session>('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  /** Sesión de solo lectura, sin usuario ni contraseña. */
+  guest: () => apiFetch<Session>('/api/auth/guest', { method: 'POST' }),
 }
 
 const json = (method: string, data: unknown): RequestInit => ({ method, body: JSON.stringify(data) })

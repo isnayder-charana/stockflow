@@ -1,6 +1,6 @@
 -- =====================================================================
 -- StockFlow - datos de muestra (inventario industrial)
--- Generado el 2026-10-17. MySQL 8.0.19 o superior (Aiven).
+-- Generado el 2026-10-17. MySQL 8.0.19 o superior, o TiDB Cloud.
 --
 -- Que inserta:
 --   9 categorias, 4 almacenes, 8 proveedores, 46 productos,
@@ -16,7 +16,7 @@
 -- RUC o SKU) no se duplica, y los movimientos solo se cargan para los
 -- productos que aun no tienen ninguno.
 --
--- En DBeaver: abrir este archivo con la conexion de Aiven, base stockflow,
+-- En DBeaver: abrir este archivo con la conexion de TiDB Cloud, base stockflow,
 -- y ejecutar como script (Alt+X).
 -- =====================================================================
 

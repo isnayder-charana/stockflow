@@ -47,6 +47,19 @@ describe('LoginPage', () => {
     expect(screen.getByRole('button', { name: 'Ingresar' })).toBeEnabled()
   })
 
+  it('entra como invitado sin usuario ni contraseña', async () => {
+    const user = userEvent.setup()
+    const guestSpy = vi
+      .spyOn(authApi, 'guest')
+      .mockResolvedValue(makeSession({ username: 'invitado', fullName: 'Invitado', role: 'Invitado' }))
+    renderLogin()
+
+    await user.click(screen.getByRole('button', { name: 'Entrar como invitado' }))
+
+    expect(guestSpy).toHaveBeenCalled()
+    expect(await screen.findByText('Pantalla de productos')).toBeInTheDocument()
+  })
+
   it('con sesión abierta redirige a productos', () => {
     saveSession(makeSession())
     renderLogin()

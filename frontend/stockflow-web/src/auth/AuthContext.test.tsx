@@ -35,6 +35,18 @@ describe('AuthContext', () => {
     expect(result.current.session).toBeNull()
   })
 
+  it('loginAsGuest abre una sesión de solo lectura', async () => {
+    const session = makeSession({ username: 'invitado', fullName: 'Invitado', role: 'Invitado' })
+    vi.spyOn(authApi, 'guest').mockResolvedValue(session)
+    const { result } = renderHook(() => useAuth(), { wrapper })
+
+    await act(() => result.current.loginAsGuest())
+
+    expect(result.current.session).toEqual(session)
+    expect(result.current.hasRole('Admin', 'Almacenero')).toBe(false)
+    expect(getSession()).toEqual(session)
+  })
+
   it('logout borra la sesión', () => {
     saveSession(makeSession())
     const { result } = renderHook(() => useAuth(), { wrapper })

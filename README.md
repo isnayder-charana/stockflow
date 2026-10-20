@@ -69,6 +69,8 @@ En Development también se crea el usuario `alertas` (contraseña `Seed:AlertsPa
 | `almacenero` | Almacenero |
 | `supervisor` | Supervisor |
 
+En la pantalla de login también está el botón **Entrar como invitado**: entra sin usuario ni contraseña con el rol `Invitado`, que puede ver todo pero no crear, editar ni borrar (la API responde 403). No necesita ningún usuario en la base, así que funciona igual en producción.
+
 DevExtreme muestra un aviso de licencia mientras no configures una clave; para uso personal o de evaluación funciona igual.
 
 ## Modelo de datos
@@ -80,13 +82,14 @@ DevExtreme muestra un aviso de licencia mientras no configures una clave; para u
 | `StockMovement` | entrada (`In`) o salida (`Out`) de un `Product` en un `Warehouse`, registrada por un `User` |
 | `Warehouse` | `IsActive`: un almacén con historial no se borra, se desactiva |
 | `Supplier` | RUC único de 11 dígitos; `IsActive`: un proveedor con productos no se borra, se desactiva |
-| `User` | rol `Admin`, `Almacenero` o `Supervisor` |
+| `User` | rol `Admin`, `Almacenero` o `Supervisor` (`Invitado` no se guarda en la base, solo va en el token) |
 
 ## Endpoints y permisos
 
 | Método | Ruta | Roles |
 |---|---|---|
 | POST | `/api/auth/login` | público |
+| POST | `/api/auth/guest` | público (token de solo lectura con rol `Invitado`) |
 | GET | `/api/products`, `/api/products/{id}` | cualquier usuario autenticado |
 | POST, PUT | `/api/products` | Admin, Almacenero |
 | DELETE | `/api/products/{id}` | Admin (si tiene movimientos, se desactiva en lugar de borrarse) |

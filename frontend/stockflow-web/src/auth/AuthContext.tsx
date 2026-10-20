@@ -5,6 +5,7 @@ import type { Session, UserRole } from '../api/types.ts'
 interface AuthContextValue {
   session: Session | null
   login: (username: string, password: string) => Promise<void>
+  loginAsGuest: () => Promise<void>
   logout: () => void
   hasRole: (...roles: UserRole[]) => boolean
 }
@@ -20,6 +21,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(data)
   }
 
+  const loginAsGuest = async () => {
+    const data = await authApi.guest()
+    saveSession(data)
+    setSession(data)
+  }
+
   const logout = () => {
     clearSession()
     setSession(null)
@@ -28,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = (...roles: UserRole[]) => !!session && roles.includes(session.role)
 
   return (
-    <AuthContext.Provider value={{ session, login, logout, hasRole }}>
+    <AuthContext.Provider value={{ session, login, loginAsGuest, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   )

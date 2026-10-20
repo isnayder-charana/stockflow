@@ -4,7 +4,7 @@ import { errorMessage } from '../api/client.ts'
 import { useAuth } from '../auth/AuthContext.tsx'
 
 export default function LoginPage() {
-  const { session, login } = useAuth()
+  const { session, login, loginAsGuest } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -13,18 +13,22 @@ export default function LoginPage() {
 
   if (session) return <Navigate to="/products" replace />
 
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  const enter = async (doLogin: () => Promise<void>) => {
     setError('')
     setLoading(true)
     try {
-      await login(username, password)
+      await doLogin()
       navigate('/products', { replace: true })
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    void enter(() => login(username, password))
   }
 
   return (
@@ -73,6 +77,17 @@ export default function LoginPage() {
               {loading ? 'Ingresando…' : 'Ingresar'}
             </button>
           </form>
+
+          <div className="login-divider">o</div>
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-lg w-100"
+            onClick={() => void enter(loginAsGuest)}
+            disabled={loading}
+          >
+            Entrar como invitado
+          </button>
+          <p className="login-guest-hint">Puedes ver todo, pero no crear, editar ni borrar.</p>
         </div>
       </div>
     </div>

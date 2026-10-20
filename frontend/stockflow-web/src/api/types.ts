@@ -1,6 +1,6 @@
 // Tipos de lo que devuelve y recibe la API (espejo de backend/src/StockFlow.Api/Dtos).
 
-export type UserRole = 'Admin' | 'Almacenero' | 'Supervisor'
+export type UserRole = 'Admin' | 'Almacenero' | 'Supervisor' | 'Invitado'
 
 export interface Session {
   token: string

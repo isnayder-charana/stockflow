@@ -42,7 +42,9 @@ export default function Layout() {
             Alertas <span className="alerts-count">{alertCount ?? '…'}</span>
           </NavLink>
           <span className="app-user-name">
-            {session?.fullName || session?.username} <span className="role-badge">{session?.role}</span>
+            {session?.fullName || session?.username} <span className="role-badge">
+              {session?.role === 'Invitado' ? 'Solo lectura' : session?.role}
+            </span>
           </span>
           <button className="btn-logout" onClick={handleLogout}>
             Cerrar sesión
